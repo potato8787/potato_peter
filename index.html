@@ -125,7 +125,7 @@
         <div class="max-w-lg text-center bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl mb-8">
             <p class="text-xl text-gray-300 leading-relaxed text-left mb-4">
                 🥔 <span class="text-yellow-400 font-bold">目標：</span>成功削完 30 顆正常的馬鈴薯。<br>
-                ⏱️ <span class="text-yellow-400 font-bold">規則：</span>選定削皮後，每顆限時 30 秒，點擊 10 下削完。<br>
+                ⏱️ <span class="text-yellow-400 font-bold">規則：</span>選定削皮後，每顆限時 30 秒，點擊指定次數削完。<br>
                 ⚠️ <span class="text-yellow-400 font-bold">警告：</span>某些馬鈴薯被「真神」詛咒了！<br>
                 💡 <span class="text-yellow-400 font-bold">提示：</span>你可以隨時選擇「不削，換一顆」來避開風險，但如果放棄了正常的馬鈴薯，將會浪費你過關的機會！
             </p>
@@ -138,11 +138,20 @@
     <!-- Main Game Screen -->
     <div id="screen-game" class="hidden absolute inset-0 flex-col items-center pt-8 pb-10 z-10 w-full max-w-2xl mx-auto px-4">
         
-        <!-- Header: Score and Timer -->
+        <!-- Header: Score, Peels Left, and Timer -->
         <div class="flex justify-between items-center w-full mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg z-20">
+            <!-- Score -->
             <div class="text-xl font-bold text-gray-300">
                 已削: <span id="score-display" class="text-yellow-400 text-3xl mx-1">0</span> / 30
             </div>
+            
+            <!-- Peels Left (New Feature) -->
+            <div class="flex flex-col items-center justify-center">
+                <span class="text-sm font-bold text-emerald-400 mb-1">剩餘削皮次數</span>
+                <span id="peels-left-display" class="text-4xl font-black text-white drop-shadow-md">0</span>
+            </div>
+
+            <!-- Timer -->
             <div class="flex flex-col items-end">
                 <div class="text-xl font-bold text-gray-300 mb-1">
                     時間: <span id="time-display" class="text-white text-3xl font-mono mx-1 w-20 inline-block text-right">30.0</span>s
@@ -207,8 +216,7 @@
     <script>
         const GOAL_SCORE = 30;
         const TIME_LIMIT = 30.0;
-        const CLICKS_TO_PEEL = 10;
-        const CURSE_CHANCE = 0.25; // 25% chance a potato is cursed
+        const CURSE_CHANCE = 0.20; // 20% chance a potato is cursed
 
         const QUOTES = [
             "暗黑命理界", 
@@ -229,6 +237,7 @@
         // State variables
         let score = 0;
         let timeLeft = TIME_LIMIT;
+        let targetClicks = 10;
         let currentClicks = 0;
         let isCurrentPotatoCursed = false;
         let gameState = 'START'; // START, CHOICE, PEELING, END
@@ -246,6 +255,7 @@
             scoreTxt: document.getElementById('score-display'),
             timeTxt: document.getElementById('time-display'),
             timeBar: document.getElementById('time-bar'),
+            peelsLeftTxt: document.getElementById('peels-left-display'),
             potato: document.getElementById('potato'),
             peeledOverlay: document.getElementById('peeled-overlay'),
             choiceUI: document.getElementById('choice-ui'),
@@ -281,6 +291,10 @@
             currentClicks = 0;
             timeLeft = TIME_LIMIT;
             
+            // Randomize clicks required (10 to 15)
+            targetClicks = Math.floor(Math.random() * 6) + 10;
+            updatePeelsLeftUI();
+
             // Randomize if this potato is cursed secretly
             isCurrentPotatoCursed = Math.random() < CURSE_CHANCE;
 
@@ -350,7 +364,6 @@
             if (gameState !== 'PEELING') return;
             e.preventDefault(); // Prevent text selection/zooming
 
-            // Ensure click is inside the potato bounding box for better feel
             const rect = DOM.potato.getBoundingClientRect();
             let x = e.clientX, y = e.clientY;
             if (e.touches && e.touches.length > 0) {
@@ -358,13 +371,14 @@
                 y = e.touches[0].clientY;
             }
 
-            // Only register click if it's somewhat near/on the potato (optional, but feels better)
+            // Register click
             currentClicks++;
+            updatePeelsLeftUI();
             spawnQuote(x, y);
 
             // Update Visuals (Peel texture + slight shrink)
-            const progress = currentClicks / CLICKS_TO_PEEL;
-            DOM.peeledOverlay.style.opacity = progress.toString();
+            const progress = currentClicks / targetClicks;
+            DOM.peeledOverlay.style.opacity = Math.min(1, progress).toString();
             DOM.potato.style.transform = `scale(${1 - (progress * 0.15)})`;
 
             // Hit feedback punch effect
@@ -377,8 +391,21 @@
                 }
             }, 50);
 
-            if (currentClicks >= CLICKS_TO_PEEL) {
+            if (currentClicks >= targetClicks) {
                 processFinishedPotato();
+            }
+        }
+
+        function updatePeelsLeftUI() {
+            const remaining = Math.max(0, targetClicks - currentClicks);
+            DOM.peelsLeftTxt.innerText = remaining;
+            
+            if (remaining === 0) {
+                DOM.peelsLeftTxt.classList.remove('text-white');
+                DOM.peelsLeftTxt.classList.add('text-yellow-400');
+            } else {
+                DOM.peelsLeftTxt.classList.add('text-white');
+                DOM.peelsLeftTxt.classList.remove('text-yellow-400');
             }
         }
 

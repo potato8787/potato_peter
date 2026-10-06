@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>削馬鈴薯生存戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #0f172a; /* slate-900 */
+            color: white;
+            font-family: 'Noto Sans TC', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Custom Peeler Cursor active only during peeling phase */
+        .peeling-mode {
+            cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' style='font-size:40px;'><text y='40'>🔪</text></svg>"), pointer;
+        }
+
+        /* Potato animations */
+        @keyframes breathe {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.05) rotate(2deg); }
+        }
+
+        .potato-idle {
+            animation: breathe 3s ease-in-out infinite;
+        }
+
+        .potato-shape {
+            width: 200px;
+            height: 260px;
+            background: radial-gradient(circle at 30% 30%, #d97706, #78350f);
+            border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+            box-shadow: inset -10px -10px 20px rgba(0,0,0,0.5), 10px 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.1s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        /* Peeled texture overlay */
+        .peeled-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 30% 30%, #fde047, #b45309);
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+
+        /* Quotes floating up */
+        .floating-quote {
+            position: fixed;
+            color: #ef4444;
+            font-weight: 900;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            pointer-events: none;
+            z-index: 50;
+            animation: floatUp 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            50% { transform: translate(-50%, -100px) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -150px) scale(1); opacity: 0; }
+        }
+
+        /* Toast Message styling */
+        .toast-msg {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 12px 24px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: 1.25rem;
+            text-align: center;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            animation: toastPopFade 1.5s ease-out forwards;
+            white-space: nowrap;
+        }
+
+        @keyframes toastPopFade {
+            0% { transform: translate(-50%, -30px); opacity: 0; }
+            15% { transform: translate(-50%, -50%); opacity: 1; }
+            80% { transform: translate(-50%, -50%); opacity: 1; }
+            100% { transform: translate(-50%, -70px); opacity: 0; }
+        }
+
+        .toast-cursed { background-color: #10b981; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
+        .toast-normal { background-color: #4b5563; color: #e5e7eb; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
+
+        /* Jumpscare shake effect */
+        @keyframes violentShake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-20px, -20px) rotate(-3deg); }
+            20% { transform: translate(20px, 20px) rotate(3deg); }
+            30% { transform: translate(-20px, 20px); }
+            40% { transform: translate(20px, -20px) rotate(-3deg); }
+            50% { transform: translate(-10px, -10px) rotate(3deg); }
+            60% { transform: translate(10px, 10px); }
+            70% { transform: translate(-20px, 20px) rotate(-3deg); }
+            80% { transform: translate(20px, -20px) rotate(3deg); }
+            90% { transform: translate(-20px, -20px); }
+        }
+        .scare-shake {
+            animation: violentShake 0.1s infinite;
+        }
+    </style>
+</head>
+<body id="game-container" class="relative w-full h-full flex flex-col items-center">
+
+    <!-- Start Screen -->
+    <div id="screen-start" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50 p-4">
+        <h1 class="text-5xl md:text-7xl font-black mb-6 text-yellow-500 drop-shadow-lg text-center">削馬鈴薯生存戰</h1>
+        <div class="max-w-lg text-center bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl mb-8">
+            <p class="text-xl text-gray-300 leading-relaxed text-left mb-4">
+                🥔 <span class="text-yellow-400 font-bold">目標：</span>成功削完 30 顆正常的馬鈴薯。<br>
+                ⏱️ <span class="text-yellow-400 font-bold">規則：</span>選定削皮後，每顆限時 30 秒，點擊 10 下削完。<br>
+                ⚠️ <span class="text-yellow-400 font-bold">警告：</span>某些馬鈴薯被「真神」詛咒了！<br>
+                💡 <span class="text-yellow-400 font-bold">提示：</span>你可以隨時選擇「不削，換一顆」來避開風險，但如果放棄了正常的馬鈴薯，將會浪費你過關的機會！
+            </p>
+        </div>
+        <button onclick="startGame()" class="px-10 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black rounded-2xl text-2xl shadow-[0_0_20px_rgba(202,138,4,0.5)] transition-transform active:scale-95 cursor-pointer">
+            開始挑戰
+        </button>
+    </div>
+
+    <!-- Main Game Screen -->
+    <div id="screen-game" class="hidden absolute inset-0 flex-col items-center pt-8 pb-10 z-10 w-full max-w-2xl mx-auto px-4">
+        
+        <!-- Header: Score and Timer -->
+        <div class="flex justify-between items-center w-full mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg z-20">
+            <div class="text-xl font-bold text-gray-300">
+                已削: <span id="score-display" class="text-yellow-400 text-3xl mx-1">0</span> / 30
+            </div>
+            <div class="flex flex-col items-end">
+                <div class="text-xl font-bold text-gray-300 mb-1">
+                    時間: <span id="time-display" class="text-white text-3xl font-mono mx-1 w-20 inline-block text-right">30.0</span>s
+                </div>
+                <!-- Timer Bar -->
+                <div class="w-32 h-3 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="time-bar" class="h-full bg-emerald-500 w-full transition-all duration-75 ease-linear"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Game Area (Where peeling happens) -->
+        <div id="peel-area" class="flex-1 w-full flex flex-col items-center justify-center relative rounded-3xl" onmousedown="handlePotatoClick(event)" ontouchstart="handlePotatoClick(event)">
+            
+            <!-- The Potato -->
+            <div id="potato" class="potato-shape potato-idle shadow-2xl relative z-10">
+                <div id="peeled-overlay" class="peeled-overlay"></div>
+            </div>
+
+            <!-- Choice UI Overlay (Shown when a new potato spawns) -->
+            <div id="choice-ui" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm z-30 rounded-3xl">
+                <h3 class="text-3xl font-black text-white mb-8 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] text-center">
+                    新馬鈴薯出現了！<br><span class="text-lg font-normal text-gray-300 mt-2 block">計時暫停中。要冒險削皮，還是換一顆？</span>
+                </h3>
+                <div class="flex flex-col gap-4 w-4/5 max-w-sm">
+                    <button onclick="choosePeel(event)" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-2xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.5)] border-2 border-emerald-400 cursor-pointer pointer-events-auto">
+                        🔪 削這顆
+                    </button>
+                    <button onclick="chooseSkip(event)" class="w-full py-4 bg-slate-600 hover:bg-slate-500 text-white font-bold rounded-xl text-xl transition-transform active:scale-95 shadow-lg border-2 border-slate-500 cursor-pointer pointer-events-auto">
+                        🔄 不削，換一顆
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jumpscare Screen -->
+    <div id="screen-jumpscare" class="hidden absolute inset-0 z-[9999] bg-black flex-col items-center justify-center overflow-hidden">
+        <img src="1791272088596.jpg" alt="Scare" class="absolute inset-0 w-full h-full object-cover opacity-80 mix-blend-screen scale-110">
+        <div class="relative z-10 p-6 text-center mt-10">
+            <h1 class="text-red-600 font-black text-5xl md:text-7xl leading-tight" style="text-shadow: 0 0 20px rgba(220,38,38,1), 4px 4px 0 #000, -2px -2px 0 #000;">
+                阿景 你來了你來削我了!!<br>我要以馬鈴薯真神之名詛咒你!!
+            </h1>
+        </div>
+    </div>
+
+    <!-- Game Over / Victory Modal -->
+    <div id="screen-modal" class="hidden absolute inset-0 flex-col items-center justify-center bg-black/90 z-[9999] backdrop-blur-md p-4">
+        <h2 id="modal-title" class="text-6xl md:text-7xl font-black mb-6 text-center drop-shadow-lg"></h2>
+        <p id="modal-desc" class="text-2xl text-gray-300 mb-8 text-center px-4"></p>
+        
+        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-600 mb-10 text-center shadow-2xl min-w-[250px]">
+            <p class="text-xl text-gray-400 mb-2 font-bold">總計削皮數</p>
+            <p class="text-7xl font-black text-yellow-400"><span id="final-score">0</span> <span class="text-3xl text-gray-500">/ 30</span></p>
+        </div>
+        
+        <button onclick="resetGame()" class="px-12 py-5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-3xl transition-transform active:scale-95 shadow-[0_0_30px_rgba(37,99,235,0.6)] border-2 border-blue-400 cursor-pointer">
+            🔄 重新開始
+        </button>
+    </div>
+
+    <script>
+        const GOAL_SCORE = 30;
+        const TIME_LIMIT = 30.0;
+        const CLICKS_TO_PEEL = 10;
+        const CURSE_CHANCE = 0.25; // 25% chance a potato is cursed
+
+        const QUOTES = [
+            "暗黑命理界", 
+            "怒怒喔", 
+            "媽祖是我前女友", 
+            "林阿景社會底層", 
+            "無償幫助人類", 
+            "真神決定，加速時代", 
+            "紅衣男子偷拍超級噁心", 
+            "真神噁心到吐血", 
+            "暗黑命理界負能量滿滿", 
+            "滿天神佛都被我真神滅了", 
+            "看我真神祖咒你", 
+            "沒達真神高度的身心靈命理都是渣", 
+            "對真神有惡意的都瞎"
+        ];
+
+        // State variables
+        let score = 0;
+        let timeLeft = TIME_LIMIT;
+        let currentClicks = 0;
+        let isCurrentPotatoCursed = false;
+        let gameState = 'START'; // START, CHOICE, PEELING, END
+        let timerInterval = null;
+        let lastTickTime = 0;
+
+        // Cache DOM elements
+        const DOM = {
+            screens: {
+                start: document.getElementById('screen-start'),
+                game: document.getElementById('screen-game'),
+                jumpscare: document.getElementById('screen-jumpscare'),
+                modal: document.getElementById('screen-modal')
+            },
+            scoreTxt: document.getElementById('score-display'),
+            timeTxt: document.getElementById('time-display'),
+            timeBar: document.getElementById('time-bar'),
+            potato: document.getElementById('potato'),
+            peeledOverlay: document.getElementById('peeled-overlay'),
+            choiceUI: document.getElementById('choice-ui'),
+            peelArea: document.getElementById('peel-area'),
+            modalTitle: document.getElementById('modal-title'),
+            modalDesc: document.getElementById('modal-desc'),
+            finalScore: document.getElementById('final-score'),
+            container: document.getElementById('game-container')
+        };
+
+        function switchScreen(target) {
+            Object.values(DOM.screens).forEach(el => el.classList.add('hidden'));
+            DOM.screens[target].classList.remove('hidden');
+            DOM.screens[target].classList.add('flex');
+        }
+
+        function startGame() {
+            score = 0;
+            updateScoreUI();
+            stopTimer();
+            DOM.container.classList.remove('scare-shake');
+            switchScreen('game');
+            spawnPotato();
+        }
+
+        function resetGame() {
+            startGame();
+        }
+
+        function spawnPotato() {
+            gameState = 'CHOICE';
+            currentClicks = 0;
+            timeLeft = TIME_LIMIT;
+            
+            // Randomize if this potato is cursed secretly
+            isCurrentPotatoCursed = Math.random() < CURSE_CHANCE;
+
+            // Reset visuals
+            updateTimerUI();
+            DOM.peeledOverlay.style.opacity = '0';
+            DOM.potato.style.transform = `scale(1) rotate(${(Math.random() - 0.5) * 30}deg)`;
+            DOM.potato.classList.add('potato-idle');
+            
+            // Show Choice UI, hide peeler cursor
+            DOM.choiceUI.classList.remove('hidden');
+            DOM.peelArea.classList.remove('peeling-mode');
+        }
+
+        function chooseSkip(e) {
+            e.preventDefault();
+            e.stopPropagation(); 
+            if (gameState !== 'CHOICE') return;
+
+            // Check what they skipped and show message
+            if (isCurrentPotatoCursed) {
+                showToast("你躲開了馬鈴薯真神詛咒", "toast-cursed");
+            } else {
+                showToast("你放棄了正常的馬鈴薯", "toast-normal");
+            }
+            
+            // Spawn next
+            spawnPotato();
+        }
+
+        function choosePeel(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (gameState !== 'CHOICE') return;
+
+            gameState = 'PEELING';
+            
+            // Hide choice UI, enable custom peeler cursor
+            DOM.choiceUI.classList.add('hidden');
+            DOM.peelArea.classList.add('peeling-mode');
+            DOM.potato.classList.remove('potato-idle');
+
+            // Start Timer Loop
+            lastTickTime = performance.now();
+            timerInterval = requestAnimationFrame(gameLoop);
+        }
+
+        function gameLoop(timestamp) {
+            if (gameState !== 'PEELING') return;
+
+            const delta = (timestamp - lastTickTime) / 1000;
+            lastTickTime = timestamp;
+            
+            timeLeft -= delta;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                updateTimerUI();
+                endGame(false, "時間到！", "你削得太慢了，挑戰失敗！");
+                return;
+            }
+
+            updateTimerUI();
+            timerInterval = requestAnimationFrame(gameLoop);
+        }
+
+        function handlePotatoClick(e) {
+            if (gameState !== 'PEELING') return;
+            e.preventDefault(); // Prevent text selection/zooming
+
+            // Ensure click is inside the potato bounding box for better feel
+            const rect = DOM.potato.getBoundingClientRect();
+            let x = e.clientX, y = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+            }
+
+            // Only register click if it's somewhat near/on the potato (optional, but feels better)
+            currentClicks++;
+            spawnQuote(x, y);
+
+            // Update Visuals (Peel texture + slight shrink)
+            const progress = currentClicks / CLICKS_TO_PEEL;
+            DOM.peeledOverlay.style.opacity = progress.toString();
+            DOM.potato.style.transform = `scale(${1 - (progress * 0.15)})`;
+
+            // Hit feedback punch effect
+            DOM.potato.style.transition = 'none';
+            DOM.potato.style.transform = `scale(${0.9 - (progress * 0.15)})`;
+            setTimeout(() => {
+                if(gameState === 'PEELING') {
+                    DOM.potato.style.transition = 'all 0.1s ease';
+                    DOM.potato.style.transform = `scale(${1 - (progress * 0.15)})`;
+                }
+            }, 50);
+
+            if (currentClicks >= CLICKS_TO_PEEL) {
+                processFinishedPotato();
+            }
+        }
+
+        function processFinishedPotato() {
+            gameState = 'END';
+            stopTimer();
+            DOM.peelArea.classList.remove('peeling-mode');
+
+            if (isCurrentPotatoCursed) {
+                triggerJumpscare();
+            } else {
+                score++;
+                updateScoreUI();
+                
+                if (score >= GOAL_SCORE) {
+                    endGame(true, "🏆 恭喜通關！", "成功削了 30 顆正常的馬鈴薯！<br>你成功躲避了真神的詛咒！");
+                } else {
+                    setTimeout(spawnPotato, 300);
+                }
+            }
+        }
+
+        function triggerJumpscare() {
+            switchScreen('jumpscare');
+            DOM.container.classList.add('scare-shake');
+            
+            // Wait 2.5 seconds, then show Game Over Modal
+            setTimeout(() => {
+                DOM.container.classList.remove('scare-shake');
+                endGame(false, "💀 遭遇真神詛咒", "你削到了受詛咒的馬鈴薯...");
+            }, 2500);
+        }
+
+        function endGame(isWin, title, desc) {
+            stopTimer();
+            gameState = 'END';
+            DOM.peelArea.classList.remove('peeling-mode');
+            
+            DOM.modalTitle.innerText = title;
+            DOM.modalTitle.className = `text-5xl md:text-7xl font-black mb-6 text-center drop-shadow-lg ${isWin ? 'text-yellow-400' : 'text-red-500'}`;
+            DOM.modalDesc.innerHTML = desc;
+            DOM.finalScore.innerText = score;
+            
+            switchScreen('modal');
+        }
+
+        function stopTimer() {
+            if (timerInterval) cancelAnimationFrame(timerInterval);
+            timerInterval = null;
+        }
+
+        function updateTimerUI() {
+            DOM.timeTxt.innerText = Math.max(0, timeLeft).toFixed(1);
+            const percent = (timeLeft / TIME_LIMIT) * 100;
+            DOM.timeBar.style.width = `${percent}%`;
+            
+            if (timeLeft <= 5) DOM.timeBar.style.backgroundColor = '#ef4444'; // red
+            else if (timeLeft <= 10) DOM.timeBar.style.backgroundColor = '#facc15'; // yellow
+            else DOM.timeBar.style.backgroundColor = '#10b981'; // emerald
+        }
+
+        function updateScoreUI() {
+            DOM.scoreTxt.innerText = score;
+        }
+
+        function spawnQuote(x, y) {
+            const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            const el = document.createElement('div');
+            el.className = 'floating-quote';
+            el.innerText = quote;
+            
+            // Add jitter so they don't stack perfectly
+            const jitterX = x + (Math.random() * 60 - 30);
+            const jitterY = y + (Math.random() * 40 - 20);
+            
+            el.style.left = `${jitterX}px`;
+            el.style.top = `${jitterY}px`;
+            
+            document.body.appendChild(el);
+            
+            setTimeout(() => {
+                if(el.parentNode) el.parentNode.removeChild(el);
+            }, 1000);
+        }
+
+        function showToast(msg, colorClass) {
+            const el = document.createElement('div');
+            el.className = `toast-msg ${colorClass}`;
+            el.innerText = msg;
+            
+            document.body.appendChild(el);
+            
+            setTimeout(() => {
+                if(el.parentNode) el.parentNode.removeChild(el);
+            }, 1500);
+        }
+
+    </script>
+</body>
+</html>

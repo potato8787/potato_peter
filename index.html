@@ -112,6 +112,25 @@
 </head>
 <body class="flex flex-col h-screen relative cursor-default" id="game-body">
 
+    <!-- 開始畫面 -->
+    <div id="start-screen" class="fixed inset-0 bg-gray-900 z-[70] flex flex-col items-center justify-center">
+        <h1 class="text-5xl md:text-6xl font-black text-yellow-400 mb-6" style="text-shadow: 2px 2px 8px black;">削馬鈴薯生存戰</h1>
+        
+        <!-- 封面縮圖 -->
+        <img src="cover.jpg" alt="遊戲封面" class="w-64 h-64 object-cover rounded-3xl shadow-2xl mb-8 border-4 border-yellow-500">
+        
+        <p class="text-xl text-gray-200 font-bold mb-8 text-center max-w-md leading-relaxed">
+            限時30秒削皮挑戰！<br>
+            小心隱藏在其中的馬鈴薯真神詛咒...<br>
+            你能成功削完30顆嗎？
+        </p>
+        
+        <!-- 開始按鈕 -->
+        <button onclick="startGame()" class="px-10 py-5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-2xl text-3xl font-black transition shadow-[0_0_20px_rgba(234,179,8,0.5)] transform hover:scale-105 active:scale-95">
+            開始挑戰
+        </button>
+    </div>
+
     <!-- 頂部資訊列 (修復重疊問題，使用 Flex 佈局) -->
     <div class="w-full flex justify-between items-center px-8 py-4 bg-gray-900 border-b border-gray-700 shadow-md">
         <div class="text-2xl font-bold">進度: <span id="score" class="text-green-400">0</span> / 30</div>
@@ -333,8 +352,11 @@
             initPotato();
         }
 
-        // 初始化第一顆馬鈴薯
-        initPotato();
+        // 開始遊戲 (由開始畫面的按鈕觸發)
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            initPotato();
+        }
     </script>
 </body>
 </html>

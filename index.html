@@ -5,366 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>削馬鈴薯生存戰</title>
     
-    <!-- 🌟 新增的社群分享縮圖(Open Graph)設定 -->
+    <!-- 社群分享縮圖(Open Graph)設定 -->
     <meta property="og:title" content="削馬鈴薯生存戰">
     <meta property="og:description" content="限時30秒削皮挑戰！小心隱藏在其中的馬鈴薯真神詛咒... 你能成功削完30顆嗎？">
-    <!-- 這裡指定了縮圖檔案為 cover.jpg，請記得將圖片上傳到 GitHub -->
+    <!-- 指定縮圖檔案為 cover.jpg -->
     <meta property="og:image" content="cover.jpg">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            overflow: hidden;
-            background-color: #1a202c;
-            color: white;
-            user-select: none;
-        }
-        /* 自訂削皮刀游標 */
-        .cursor-peeler {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-2 2-2 2s.69-2 2-2c1.66 0 3-1.34 3-3V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v10c0 1.66 1.34 3 3 3 0 0 2 .69 2-2s-2-2-2-2c-1.66 0-3-1.34-3-3V4"/></svg>') 16 16, auto;
-        }
-        
-        .potato {
-            width: 200px;
-            height: 250px;
-            background: radial-gradient(circle at 30% 30%, #d2b48c, #8b4513);
-            border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
-            box-shadow: inset -20px -20px 40px rgba(0,0,0,0.5), 10px 10px 20px rgba(0,0,0,0.3);
-            position: relative;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .potato:active {
-            transform: scale(0.95);
-        }
-        /* 削皮碎屑動畫 */
-        .peel-particle {
-            position: absolute;
-            width: 20px;
-            height: 10px;
-            background-color: #f5deb3;
-            border-radius: 50%;
-            pointer-events: none;
-            animation: fall 0.5s ease-out forwards;
-        }
-        @keyframes fall {
-            0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-            100% { transform: translateY(100px) rotate(180deg) scale(0); opacity: 0; }
-        }
-
-        /* 真神語錄浮動文字 */
-        .quote-float {
-            position: absolute;
-            color: #ef4444;
-            font-weight: bold;
-            font-size: 1.5rem;
-            text-shadow: 2px 2px 4px black;
-            pointer-events: none;
-            animation: floatUp 1s ease-out forwards;
-            z-index: 10;
-        }
-        @keyframes floatUp {
-            0% { transform: translateY(0) scale(0.8); opacity: 1; }
-            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
-        }
-
-        /* 換一顆的提示文字 */
-        .toast-msg {
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 8px black;
-            pointer-events: none;
-            animation: popToast 1.5s ease-in-out forwards;
-            z-index: 20;
-        }
-        @keyframes popToast {
-            0% { transform: translate(-50%, -40%); opacity: 0; }
-            20% { transform: translate(-50%, -50%); opacity: 1; }
-            80% { transform: translate(-50%, -50%); opacity: 1; }
-            100% { transform: translate(-50%, -60%); opacity: 0; }
-        }
-
-        /* Jumpscare 背景照片輕微震動 (只有圖片在抖) */
-        .img-shake {
-            animation: imgVibrate 0.1s infinite;
-        }
-        @keyframes imgVibrate {
-            0% { transform: translate(0, 0); }
-            25% { transform: translate(-2px, 2px); }
-            50% { transform: translate(2px, -2px); }
-            75% { transform: translate(-2px, -2px); }
-            100% { transform: translate(2px, 2px); }
-        }
-
-        /* Jumpscare 滿版層 */
-        #jumpscare-layer {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: black;
-            z-index: 50;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        #jumpscare-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: -1;
-            opacity: 0.8;
-        }
-        #jumpscare-text {
-            color: #ff0000;
-            font-size: 4rem;
-            font-weight: 900;
-            text-align: center;
-            text-shadow: 0 0 20px #000, 0 0 40px #ff0000;
-            padding: 20px;
-            z-index: 10;
-        }
-    </style>
-</head>
-<body class="flex flex-col items-center justify-center h-screen relative cursor-default" id="game-body">
-
-    <!-- 頂部資訊列 -->
-    <div class="absolute top-4 left-0 w-full flex justify-between px-8 text-2xl font-bold bg-black/50 py-2">
-        <div>進度: <span id="score" class="text-green-400">0</span> / 30</div>
-        <!-- 動態剩餘削皮次數 -->
-        <div class="text-yellow-400">剩餘削皮次數: <span id="peels-left" class="text-3xl text-white">0</span></div>
-        <div>時間: <span id="timer" class="text-red-400">30.0</span> 秒</div>
-    </div>
-
-    <!-- 遊戲互動區 -->
-    <div id="game-area" class="flex flex-col items-center mt-10">
-        <div id="potato" class="potato hidden mb-8"></div>
-        
-        <!-- 選擇按鈕 -->
-        <div id="choice-buttons" class="flex gap-4">
-            <button onclick="startPeeling()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-xl font-bold transition">🔪 削這顆</button>
-            <button onclick="skipPotato()" class="px-6 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-xl font-bold transition">🚫 不削，換一顆</button>
-        </div>
-    </div>
-
-    <!-- Jumpscare 層 -->
-    <div id="jumpscare-layer">
-        <!-- 注意：這裡依然是您指定的檔名 -->
-        <img id="jumpscare-bg" src="1791272088596.jpg" alt="真神" class="img-shake">
-        <h1 id="jumpscare-text">阿景 你來了你來削我了!!<br>我要以馬鈴薯真神之名詛咒你!!</h1>
-    </div>
-
-    <!-- 結算彈窗 -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div class="bg-gray-800 p-8 rounded-xl text-center border-4 border-gray-600">
-            <h2 id="modal-title" class="text-4xl font-bold mb-4"></h2>
-            <p id="modal-desc" class="text-xl mb-6 text-gray-300"></p>
-            <button onclick="resetGame()" class="px-8 py-4 bg-green-600 hover:bg-green-500 rounded-lg text-2xl font-bold transition">重新開始遊戲</button>
-        </div>
-    </div>
-
-    <script>
-        let score = 0;
-        let timeLeft = 30.0;
-        let targetPeels = 0;
-        let currentPeels = 0;
-        let timerInterval;
-        let isCursed = false;
-        let isPeelingMode = false;
-
-        const potatoEl = document.getElementById('potato');
-        const scoreEl = document.getElementById('score');
-        const timerEl = document.getElementById('timer');
-        const peelsLeftEl = document.getElementById('peels-left');
-        const choiceButtons = document.getElementById('choice-buttons');
-        const jumpscareLayer = document.getElementById('jumpscare-layer');
-        const modal = document.getElementById('modal');
-        const gameBody = document.getElementById('game-body');
-
-        const quotes = [
-            "暗黑命理界", "怒怒喔", "媽祖是我前女友", "林阿景社會底層",
-            "無償幫助人類", "真神決定，加速時代", "紅衣男子偷拍超級噁心",
-            "真神噁心到吐血", "暗黑命理界負能量滿滿", "滿天神佛都被我真神滅了",
-            "看我真神祖咒你", "沒達真神高度的身心靈命理都是渣", "對真神有惡意的都瞎"
-        ];
-
-        function initPotato() {
-            isPeelingMode = false;
-            gameBody.classList.remove('cursor-peeler');
-            potatoEl.classList.remove('hidden');
-            choiceButtons.classList.remove('hidden');
-            
-            // 隨機決定這顆是否受詛咒 (20% 機率)
-            isCursed = Math.random() < 0.20;
-            // 隨機決定這顆需要削幾刀 (10 到 15 刀)
-            targetPeels = Math.floor(Math.random() * 6) + 10;
-            currentPeels = 0;
-            updatePeelsLeft();
-            
-            // 重置時間
-            timeLeft = 30.0;
-            timerEl.textContent = timeLeft.toFixed(1);
-            clearInterval(timerInterval);
-        }
-
-        function updatePeelsLeft() {
-            let left = targetPeels - currentPeels;
-            peelsLeftEl.textContent = left;
-            if (left <= 3) {
-                peelsLeftEl.className = "text-3xl text-red-500 font-bold animate-pulse";
-            } else {
-                peelsLeftEl.className = "text-3xl text-white";
-            }
-        }
-
-        function skipPotato() {
-            if (isCursed) {
-                showToast("你躲開了馬鈴薯真神詛咒 ✨", "text-green-400");
-            } else {
-                showToast("你放棄了正常的馬鈴薯 🥔", "text-gray-400");
-            }
-            initPotato(); // 直接換下一顆
-        }
-
-        function startPeeling() {
-            isPeelingMode = true;
-            choiceButtons.classList.add('hidden');
-            gameBody.classList.add('cursor-peeler');
-            
-            // 開始計時
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1;
-                timerEl.textContent = timeLeft.toFixed(1);
-                if (timeLeft <= 0) {
-                    gameOver("時間到！", "你動作太慢了，連顆馬鈴薯都削不好！");
-                }
-            }, 100);
-        }
-
-        potatoEl.addEventListener('mousedown', (e) => {
-            if (!isPeelingMode) return;
-            
-            currentPeels++;
-            updatePeelsLeft();
-            createParticle(e.clientX, e.clientY);
-            showQuote(e.clientX, e.clientY);
-
-            if (currentPeels >= targetPeels) {
-                clearInterval(timerInterval);
-                checkResult();
-            }
-        });
-
-        function checkResult() {
-            if (isCursed) {
-                triggerJumpscare();
-            } else {
-                score++;
-                scoreEl.textContent = score;
-                if (score >= 30) {
-                    gameOver("🎉 挑戰成功 🎉", "你成功削完了30顆馬鈴薯，逃過了真神的詛咒！");
-                } else {
-                    initPotato();
-                }
-            }
-        }
-
-        function createParticle(x, y) {
-            const particle = document.createElement('div');
-            particle.className = 'peel-particle';
-            particle.style.left = (x - 10) + 'px';
-            particle.style.top = (y - 5) + 'px';
-            document.body.appendChild(particle);
-            setTimeout(() => particle.remove(), 500);
-        }
-
-        function showQuote(x, y) {
-            const quoteText = quotes[Math.floor(Math.random() * quotes.length)];
-            const quoteEl = document.createElement('div');
-            quoteEl.className = 'quote-float';
-            quoteEl.textContent = quoteText;
-            
-            const offsetX = (Math.random() - 0.5) * 100;
-            quoteEl.style.left = (x + offsetX) + 'px';
-            quoteEl.style.top = (y - 20) + 'px';
-            
-            document.body.appendChild(quoteEl);
-            setTimeout(() => quoteEl.remove(), 1000);
-        }
-
-        function showToast(msg, colorClass) {
-            const toast = document.createElement('div');
-            toast.className = `toast-msg ${colorClass}`;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 1500);
-        }
-
-        function triggerJumpscare() {
-            jumpscareLayer.style.display = 'flex';
-            setTimeout(() => {
-                gameOver("被真神詛咒了💀", "阿景 你來了你來削我了!!");
-            }, 2000); // 嚇人2秒後顯示結算
-        }
-
-        function gameOver(title, desc) {
-            clearInterval(timerInterval);
-            isPeelingMode = false;
-            gameBody.classList.remove('cursor-peeler');
-            jumpscareLayer.style.display = 'none';
-            
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-title').className = title.includes("成功") ? "text-4xl font-bold mb-4 text-green-400" : "text-4xl font-bold mb-4 text-red-500";
-            document.getElementById('modal-desc').textContent = desc;
-            modal.classList.remove('hidden');
-        }
-
-        function resetGame() {
-            score = 0;
-            scoreEl.textContent = score;
-            modal.classList.add('hidden');
-            jumpscareLayer.style.display = 'none';
-            initPotato();
-        }
-
-        // 遊戲啟動
-        initPotato();
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>削馬鈴薯生存戰</title>
     
-    <!-- 🌟 新增的社群分享縮圖(Open Graph)設定 -->
-    <meta property="og:title" content="削馬鈴薯生存戰">
-    <meta property="og:description" content="限時30秒削皮挑戰！小心隱藏在其中的馬鈴薯真神詛咒... 你能成功削完30顆嗎？">
-    <!-- 這裡指定了縮圖檔案為 cover.jpg，請記得將圖片上傳到 GitHub -->
-    <meta property="og:image" content="cover.jpg">
-    <meta property="og:type" content="website">
-    <meta name="twitter:card" content="summary_large_image">
-
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             overflow: hidden;
             background-color: #1a202c;
             color: white;
             user-select: none;
+            font-family: sans-serif;
         }
+        
         /* 自訂削皮刀游標 */
         .cursor-peeler {
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-2 2-2 2s.69-2 2-2c1.66 0 3-1.34 3-3V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v10c0 1.66 1.34 3 3 3 0 0 2 .69 2-2s-2-2-2-2c-1.66 0-3-1.34-3-3V4"/></svg>') 16 16, auto;
@@ -383,6 +42,7 @@
         .potato:active {
             transform: scale(0.95);
         }
+
         /* 削皮碎屑動畫 */
         .peel-particle {
             position: absolute;
@@ -392,6 +52,7 @@
             border-radius: 50%;
             pointer-events: none;
             animation: fall 0.5s ease-out forwards;
+            z-index: 10;
         }
         @keyframes fall {
             0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
@@ -407,7 +68,8 @@
             text-shadow: 2px 2px 4px black;
             pointer-events: none;
             animation: floatUp 1s ease-out forwards;
-            z-index: 10;
+            z-index: 20;
+            white-space: nowrap;
         }
         @keyframes floatUp {
             0% { transform: translateY(0) scale(0.8); opacity: 1; }
@@ -416,7 +78,7 @@
 
         /* 換一顆的提示文字 */
         .toast-msg {
-            position: absolute;
+            position: fixed;
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -425,7 +87,8 @@
             text-shadow: 2px 2px 8px black;
             pointer-events: none;
             animation: popToast 1.5s ease-in-out forwards;
-            z-index: 20;
+            z-index: 30;
+            white-space: nowrap;
         }
         @keyframes popToast {
             0% { transform: translate(-50%, -40%); opacity: 0; }
@@ -445,80 +108,60 @@
             75% { transform: translate(-2px, -2px); }
             100% { transform: translate(2px, 2px); }
         }
-
-        /* Jumpscare 滿版層 */
-        #jumpscare-layer {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: black;
-            z-index: 50;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        #jumpscare-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: -1;
-            opacity: 0.8;
-        }
-        #jumpscare-text {
-            color: #ff0000;
-            font-size: 4rem;
-            font-weight: 900;
-            text-align: center;
-            text-shadow: 0 0 20px #000, 0 0 40px #ff0000;
-            padding: 20px;
-            z-index: 10;
-        }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center h-screen relative cursor-default" id="game-body">
+<body class="flex flex-col h-screen relative cursor-default" id="game-body">
 
-    <!-- 頂部資訊列 -->
-    <div class="absolute top-4 left-0 w-full flex justify-between px-8 text-2xl font-bold bg-black/50 py-2">
-        <div>進度: <span id="score" class="text-green-400">0</span> / 30</div>
+    <!-- 頂部資訊列 (修復重疊問題，使用 Flex 佈局) -->
+    <div class="w-full flex justify-between items-center px-8 py-4 bg-gray-900 border-b border-gray-700 shadow-md">
+        <div class="text-2xl font-bold">進度: <span id="score" class="text-green-400">0</span> / 30</div>
+        
         <!-- 動態剩餘削皮次數 -->
-        <div class="text-yellow-400">剩餘削皮次數: <span id="peels-left" class="text-3xl text-white">0</span></div>
-        <div>時間: <span id="timer" class="text-red-400">30.0</span> 秒</div>
+        <div class="text-xl font-bold text-yellow-400 flex items-center gap-2">
+            剩餘削皮次數: <span id="peels-left" class="text-3xl text-white font-mono w-8 text-center">0</span>
+        </div>
+        
+        <div class="text-2xl font-bold">時間: <span id="timer" class="text-red-400 font-mono w-16 inline-block text-right">30.0</span> 秒</div>
     </div>
 
     <!-- 遊戲互動區 -->
-    <div id="game-area" class="flex flex-col items-center mt-10">
-        <div id="potato" class="potato hidden mb-8"></div>
+    <div id="game-area" class="flex-1 flex flex-col items-center justify-center relative">
+        <div id="potato" class="potato mb-12 hidden"></div>
         
-        <!-- 選擇按鈕 -->
-        <div id="choice-buttons" class="flex gap-4">
-            <button onclick="startPeeling()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-xl font-bold transition">🔪 削這顆</button>
-            <button onclick="skipPotato()" class="px-6 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-xl font-bold transition">🚫 不削，換一顆</button>
+        <!-- 選擇按鈕 (確保只有一組) -->
+        <div id="choice-buttons" class="flex gap-6 z-10">
+            <button onclick="startPeeling()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-xl font-bold shadow-lg transition transform hover:scale-105 active:scale-95">
+                🔪 削這顆
+            </button>
+            <button onclick="skipPotato()" class="px-8 py-4 bg-gray-600 hover:bg-gray-500 rounded-xl text-xl font-bold shadow-lg transition transform hover:scale-105 active:scale-95">
+                🚫 不削，換一顆
+            </button>
         </div>
     </div>
 
     <!-- Jumpscare 層 -->
-    <div id="jumpscare-layer">
-        <!-- 注意：這裡依然是您指定的檔名 -->
-        <img id="jumpscare-bg" src="1791272088596.jpg" alt="真神" class="img-shake">
-        <h1 id="jumpscare-text">阿景 你來了你來削我了!!<br>我要以馬鈴薯真神之名詛咒你!!</h1>
+    <div id="jumpscare-layer" class="hidden fixed inset-0 bg-black z-50 flex-col items-center justify-center overflow-hidden">
+        <!-- 圖片本身帶有微弱震動 -->
+        <img id="jumpscare-bg" src="1791272088596.jpg" alt="真神" class="absolute inset-0 w-full h-full object-cover img-shake opacity-80 mix-blend-screen scale-105">
+        <!-- 文字固定不動 -->
+        <h1 class="relative z-10 text-[#ff0000] text-5xl md:text-6xl font-black text-center p-8" style="text-shadow: 0 0 20px #000, 0 0 40px #ff0000, 4px 4px 0 #000, -2px -2px 0 #000;">
+            阿景 你來了你來削我了!!<br>我要以馬鈴薯真神之名詛咒你!!
+        </h1>
     </div>
 
     <!-- 結算彈窗 -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-        <div class="bg-gray-800 p-8 rounded-xl text-center border-4 border-gray-600">
-            <h2 id="modal-title" class="text-4xl font-bold mb-4"></h2>
-            <p id="modal-desc" class="text-xl mb-6 text-gray-300"></p>
-            <button onclick="resetGame()" class="px-8 py-4 bg-green-600 hover:bg-green-500 rounded-lg text-2xl font-bold transition">重新開始遊戲</button>
+    <div id="modal" class="hidden fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 p-10 rounded-2xl text-center border-4 border-gray-600 shadow-2xl">
+            <h2 id="modal-title" class="text-4xl font-black mb-4"></h2>
+            <p id="modal-desc" class="text-xl mb-8 text-gray-300 font-bold"></p>
+            <button onclick="resetGame()" class="px-8 py-4 bg-green-600 hover:bg-green-500 rounded-xl text-2xl font-black transition shadow-lg transform active:scale-95">
+                重新開始遊戲
+            </button>
         </div>
     </div>
 
     <script>
+        // Game variables
         let score = 0;
         let timeLeft = 30.0;
         let targetPeels = 0;
@@ -527,6 +170,7 @@
         let isCursed = false;
         let isPeelingMode = false;
 
+        // DOM Elements
         const potatoEl = document.getElementById('potato');
         const scoreEl = document.getElementById('score');
         const timerEl = document.getElementById('timer');
@@ -565,10 +209,10 @@
         function updatePeelsLeft() {
             let left = targetPeels - currentPeels;
             peelsLeftEl.textContent = left;
-            if (left <= 3) {
-                peelsLeftEl.className = "text-3xl text-red-500 font-bold animate-pulse";
+            if (left <= 3 && left > 0) {
+                peelsLeftEl.className = "text-3xl text-red-500 font-bold animate-pulse text-center w-8";
             } else {
-                peelsLeftEl.className = "text-3xl text-white";
+                peelsLeftEl.className = "text-3xl text-white font-mono text-center w-8";
             }
         }
 
@@ -583,13 +227,13 @@
 
         function startPeeling() {
             isPeelingMode = true;
-            choiceButtons.classList.add('hidden');
-            gameBody.classList.add('cursor-peeler');
+            choiceButtons.classList.add('hidden'); // 隱藏選項
+            gameBody.classList.add('cursor-peeler'); // 換游標
             
             // 開始計時
             timerInterval = setInterval(() => {
                 timeLeft -= 0.1;
-                timerEl.textContent = timeLeft.toFixed(1);
+                timerEl.textContent = Math.max(0, timeLeft).toFixed(1);
                 if (timeLeft <= 0) {
                     gameOver("時間到！", "你動作太慢了，連顆馬鈴薯都削不好！");
                 }
@@ -617,7 +261,7 @@
                 score++;
                 scoreEl.textContent = score;
                 if (score >= 30) {
-                    gameOver("🎉 挑戰成功 🎉", "你成功削完了30顆馬鈴薯，逃過了真神的詛咒！");
+                    gameOver("🎉 挑戰成功 🎉", "你成功削完了 30 顆馬鈴薯，逃過了真神的詛咒！");
                 } else {
                     initPotato();
                 }
@@ -639,9 +283,9 @@
             quoteEl.className = 'quote-float';
             quoteEl.textContent = quoteText;
             
-            const offsetX = (Math.random() - 0.5) * 100;
+            const offsetX = (Math.random() - 0.5) * 150;
             quoteEl.style.left = (x + offsetX) + 'px';
-            quoteEl.style.top = (y - 20) + 'px';
+            quoteEl.style.top = (y - 40) + 'px';
             
             document.body.appendChild(quoteEl);
             setTimeout(() => quoteEl.remove(), 1000);
@@ -656,21 +300,29 @@
         }
 
         function triggerJumpscare() {
-            jumpscareLayer.style.display = 'flex';
+            jumpscareLayer.classList.remove('hidden');
+            jumpscareLayer.classList.add('flex');
+            
             setTimeout(() => {
-                gameOver("被真神詛咒了💀", "阿景 你來了你來削我了!!");
-            }, 2000); // 嚇人2秒後顯示結算
+                gameOver("被真神詛咒了 💀", "阿景 你來了你來削我了!!");
+            }, 2500); // 嚇人2.5秒後顯示結算
         }
 
         function gameOver(title, desc) {
             clearInterval(timerInterval);
             isPeelingMode = false;
             gameBody.classList.remove('cursor-peeler');
-            jumpscareLayer.style.display = 'none';
             
-            document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-title').className = title.includes("成功") ? "text-4xl font-bold mb-4 text-green-400" : "text-4xl font-bold mb-4 text-red-500";
+            // 隱藏 Jumpscare 層
+            jumpscareLayer.classList.add('hidden');
+            jumpscareLayer.classList.remove('flex');
+            
+            // 顯示結算
+            const modalTitle = document.getElementById('modal-title');
+            modalTitle.textContent = title;
+            modalTitle.className = title.includes("成功") ? "text-5xl font-black mb-4 text-green-400" : "text-5xl font-black mb-4 text-red-500";
             document.getElementById('modal-desc').textContent = desc;
+            
             modal.classList.remove('hidden');
         }
 
@@ -678,11 +330,10 @@
             score = 0;
             scoreEl.textContent = score;
             modal.classList.add('hidden');
-            jumpscareLayer.style.display = 'none';
             initPotato();
         }
 
-        // 遊戲啟動
+        // 初始化第一顆馬鈴薯
         initPotato();
     </script>
 </body>
